@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e5a73a073f804d49aaff951bb1700012, type: 3}
+  m_Name: NetworkConfig
+  m_EditorClassIdentifier: 
+  baseURL: https://api.didimo.co/v3
+  apiKey: pub_YTZ16061f_PyR0HJS71tOlDlUFlcJCLW3N4dT341GE
+  overrideDownloadRoot: 
+  Features:
+    ToggleFeatures:
+    - FeatureName: fbx
+      FeatureKey: transfer_formats
+      ToggledOn: 1
+    - FeatureName: gltf
+      FeatureKey: transfer_formats
+      ToggledOn: 1
+    BooleanFeatures:
+    - FeatureName: arkit
+      Enabled: 1
+    - FeatureName: aws_polly
+      Enabled: 1
+    - FeatureName: oculus_lipsync
+      Enabled: 1
+    - FeatureName: simple_poses
+      Enabled: 1
+    MultiOptionFeatures:
+    - FeatureName: profile
+      SelectedOption: 0
+      Options:
+      - minimal
+      - optimized
+      - standard
