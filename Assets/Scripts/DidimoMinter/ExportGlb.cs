@@ -6,8 +6,12 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityGLTF;
 
+
 	public static class ExportGlb
 	{
+		public static event Action<string> OnResultFilePathAssigned;
+
+		public static string ResultFilePath;
 		
 		private const string MenuPrefix = "Assets/UnityGLTF/";
 
@@ -97,6 +101,11 @@ using UnityGLTF;
 				Debug.Log("Exported to " + resultFile);
 				//Open the folder in the file browser
 				//EditorUtility.RevealInFinder(resultFile);
+				ResultFilePath = resultFile;
+				
+				OnResultFilePathAssigned?.Invoke(ResultFilePath);
+
+
 			}
 		}
 	}
