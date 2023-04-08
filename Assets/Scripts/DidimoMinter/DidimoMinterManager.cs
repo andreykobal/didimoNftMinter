@@ -6,13 +6,35 @@ using Didimo.Networking;
 using UnityEngine.UI;
 using NFTStorage;
 using NFTStorage.JSONSerialization;
+using Newtonsoft.Json;
+using System.IO;
 
 public class DidimoMinterManager : MonoBehaviour
 {
     private NFTStorageClient nftClient;
 
     public Button createDidimoButton;
+    public InputField walletAddress;
+    
     private DidimoMinter customApi;
+    
+    public class Metadata
+    {
+        [JsonProperty("description")]
+        public string Description { get; set; }
+
+        [JsonProperty("external_url")]
+        public string ExternalUrl { get; set; }
+
+        [JsonProperty("image")]
+        public string Image { get; set; }
+
+        [JsonProperty("name")]
+        public string Name { get; set; }
+
+        [JsonProperty("animation_url")]
+        public string AnimationUrl { get; set; }
+    }
 
     // Start is called before the first frame update
     void Start()
@@ -70,9 +92,20 @@ public class DidimoMinterManager : MonoBehaviour
         // Call your method here that needs to be triggered when ResultFilePath is assigned
         // Call the UploadFile method to upload a file and get the file URL using CID
         string fileUrl = await UploadFile(correctedPath);
-
         // Log the full file URL to the console
         Debug.Log("Avatar uploaded to: " + fileUrl);
+        
+        string metadataFileUrl = await UploadMetadataFile(fileUrl);
+        
+        Debug.Log("Metadata file uploaded to: " + metadataFileUrl);
+        
+        string ownerAddress = walletAddress.text;
+        string tokenURI = metadataFileUrl;
+
+        StartCoroutine(NFTAPI.MintNFT(ownerAddress, tokenURI,
+            (response) => Debug.Log("Minting successful: " + response),
+            (error) => Debug.LogError("Minting error: " + error)));
+        
     }
 
     private async Task<string> UploadFile(string filePath)
@@ -85,4 +118,42 @@ public class DidimoMinterManager : MonoBehaviour
 
         return fileUrl;
     }
+    
+    private async Task<string> UploadMetadataFile(string animationUrl)
+    {
+        // Create a metadata object
+        var metadata = new Metadata
+        {
+            Description = "An NFT avatar for metaverse",
+            ExternalUrl = "https://ailand.app/",
+            Image = "https://bafkreib7v2xptv6idhv7vbnfoqb3gcrurxs3ew5u7aumo5aobpooieersq.ipfs.nftstorage.link/",
+            Name = "Ailand Avatar #1",
+            AnimationUrl = animationUrl
+        };
+
+        // Serialize the metadata object to a JSON string
+        string jsonString = JsonConvert.SerializeObject(metadata);
+
+        // Generate a random file name
+        string randomFileName = Path.GetRandomFileName() + ".json";
+
+        // Combine Application.persistentDataPath with the random file name
+        string filePath = Path.Combine(Application.persistentDataPath, randomFileName);
+
+        // Save the JSON string to the file
+        File.WriteAllText(filePath, jsonString);
+
+        // Call the UploadDataFromStringHttpClient method to upload the file and get the file URL using CID
+        NFTStorageUploadResponse response = await nftClient.UploadDataFromStringHttpClient(filePath);
+
+        // Build the full file URL using the CID
+        string fileUrl = $"https://{response.value.cid}.ipfs.dweb.link/";
+
+        // Delete the temporary file after uploading
+        File.Delete(filePath);
+
+        return fileUrl;
+    }
+    
+    
 }
