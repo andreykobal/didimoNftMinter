@@ -15,25 +15,20 @@ public class DidimoMinterManager : MonoBehaviour
 
     public Button createDidimoButton;
     public InputField walletAddress;
-    
+
     private DidimoMinter customApi;
-    
+
     public class Metadata
     {
-        [JsonProperty("description")]
-        public string Description { get; set; }
+        [JsonProperty("description")] public string Description { get; set; }
 
-        [JsonProperty("external_url")]
-        public string ExternalUrl { get; set; }
+        [JsonProperty("external_url")] public string ExternalUrl { get; set; }
 
-        [JsonProperty("image")]
-        public string Image { get; set; }
+        [JsonProperty("image")] public string Image { get; set; }
 
-        [JsonProperty("name")]
-        public string Name { get; set; }
+        [JsonProperty("name")] public string Name { get; set; }
 
-        [JsonProperty("animation_url")]
-        public string AnimationUrl { get; set; }
+        [JsonProperty("animation_url")] public string AnimationUrl { get; set; }
     }
 
     // Start is called before the first frame update
@@ -91,21 +86,25 @@ public class DidimoMinterManager : MonoBehaviour
 
         // Call your method here that needs to be triggered when ResultFilePath is assigned
         // Call the UploadFile method to upload a file and get the file URL using CID
-        string fileUrl = await UploadFile(correctedPath);
+        string animationUrl = await UploadFile(correctedPath);
+
         // Log the full file URL to the console
-        Debug.Log("Avatar uploaded to: " + fileUrl);
-        
-        string metadataFileUrl = await UploadMetadataFile(fileUrl);
-        
+        Debug.Log("Avatar uploaded to: " + animationUrl);
+
+        string imageUrl = await UploadScreenshot();
+
+        Debug.Log("Image uploaded to: " + imageUrl);
+
+        string metadataFileUrl = await UploadMetadataFile(animationUrl, imageUrl);
+
         Debug.Log("Metadata file uploaded to: " + metadataFileUrl);
-        
+
         string ownerAddress = walletAddress.text;
         string tokenURI = metadataFileUrl;
 
         StartCoroutine(NFTAPI.MintNFT(ownerAddress, tokenURI,
             (response) => Debug.Log("Minting successful: " + response),
             (error) => Debug.LogError("Minting error: " + error)));
-        
     }
 
     private async Task<string> UploadFile(string filePath)
@@ -118,15 +117,15 @@ public class DidimoMinterManager : MonoBehaviour
 
         return fileUrl;
     }
-    
-    private async Task<string> UploadMetadataFile(string animationUrl)
+
+    private async Task<string> UploadMetadataFile(string animationUrl, string imageUrl)
     {
         // Create a metadata object
         var metadata = new Metadata
         {
             Description = "An NFT avatar for metaverse",
             ExternalUrl = "https://ailand.app/",
-            Image = "https://bafkreib7v2xptv6idhv7vbnfoqb3gcrurxs3ew5u7aumo5aobpooieersq.ipfs.nftstorage.link/",
+            Image = imageUrl,
             Name = "Ailand Avatar #1",
             AnimationUrl = animationUrl
         };
@@ -154,6 +153,101 @@ public class DidimoMinterManager : MonoBehaviour
 
         return fileUrl;
     }
-    
-    
+
+    private async Task<string> UploadScreenshot()
+    {
+        // Capture a screenshot from the main camera and save it to a temporary file
+        string tempScreenshotPath = Path.Combine(Application.persistentDataPath, "tempScreenshot.png");
+        ScreenCapture.CaptureScreenshot(tempScreenshotPath);
+        Debug.Log($"Captured screenshot at {tempScreenshotPath}");
+
+        // Wait for a short time to ensure that the file is fully written to disk
+        await Task.Delay(50);
+
+        // Load the image from the temporary file
+        byte[] imageData;
+        using (FileStream fs = new FileStream(tempScreenshotPath, FileMode.Open, FileAccess.Read))
+        {
+            imageData = new byte[fs.Length];
+            await fs.ReadAsync(imageData, 0, (int)fs.Length);
+        }
+
+        Debug.Log($"Read {imageData.Length} bytes from {tempScreenshotPath}");
+
+        // Create a Texture2D object from the image data
+        Texture2D texture = new Texture2D(1, 1);
+        texture.LoadImage(imageData);
+
+        // Crop the texture to a square aspect ratio, centered around its center
+        int size = Mathf.Min(texture.width, texture.height);
+        texture = Crop(texture, new Rect(0, 0, size, size));
+
+        // Save the cropped image to another temporary file
+        string tempCroppedPath = Path.Combine(Application.persistentDataPath, "tempCropped.png");
+        File.WriteAllBytes(tempCroppedPath, texture.EncodeToPNG());
+
+        Debug.Log($"Saved cropped image to {tempCroppedPath}");
+
+        // Upload the cropped image file to NFTStorage using the UploadFile method
+        string fileUrl = await UploadFile(tempCroppedPath);
+
+        // Delete both temporary files after uploading
+        File.Delete(tempScreenshotPath);
+        File.Delete(tempCroppedPath);
+
+        Debug.Log($"Deleted {tempScreenshotPath} and {tempCroppedPath}");
+
+        return fileUrl;
+    }
+
+
+    public static Texture2D Crop(Texture2D sourceTexture, Rect rect)
+    {
+        // Calculate the coordinates and size of the cropped area
+        int x = Mathf.RoundToInt(rect.x);
+        int y = Mathf.RoundToInt(rect.y);
+        int width = Mathf.RoundToInt(rect.width);
+        int height = Mathf.RoundToInt(rect.height);
+
+        // Make sure the cropped area is within the bounds of the source texture
+        if (x < 0) x = 0;
+        if (y < 0) y = 0;
+        if (x + width > sourceTexture.width) width = sourceTexture.width - x;
+        if (y + height > sourceTexture.height) height = sourceTexture.height - y;
+
+        // Create a new texture for the cropped area
+        Texture2D croppedTexture = new Texture2D(width, height);
+
+        // Calculate the center of the source texture
+        int centerX = sourceTexture.width / 2;
+        int centerY = sourceTexture.height / 2;
+
+        // Calculate the offset to center the cropped area around the center of the source texture
+        int offsetX = centerX - x - width / 2;
+        int offsetY = centerY - y - height / 2;
+
+        // Copy the pixels from the source texture to the cropped texture
+        Color[] pixels = sourceTexture.GetPixels(x, y, width, height);
+        croppedTexture.SetPixels(pixels);
+
+        // Shift the cropped texture to center it around the center of the source texture
+        Color[] shiftedPixels = new Color[croppedTexture.width * croppedTexture.height];
+        for (int yIndex = 0; yIndex < croppedTexture.height; yIndex++)
+        {
+            for (int xIndex = 0; xIndex < croppedTexture.width; xIndex++)
+            {
+                int sourceX = xIndex + offsetX;
+                int sourceY = yIndex + offsetY;
+                int sourceIndex = sourceY * sourceTexture.width + sourceX;
+                int destinationIndex = yIndex * croppedTexture.width + xIndex;
+                shiftedPixels[destinationIndex] = sourceTexture.GetPixel(sourceX, sourceY);
+            }
+        }
+
+        croppedTexture.SetPixels(shiftedPixels);
+
+        // Apply the changes and return the cropped texture
+        croppedTexture.Apply();
+        return croppedTexture;
+    }
 }
