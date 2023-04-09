@@ -14,9 +14,14 @@ public class DidimoMinterManager : MonoBehaviour
     private NFTStorageClient nftClient;
 
     public Button createDidimoButton;
+    public Button getMetadataButton; 
     public InputField walletAddress;
 
     private DidimoMinter customApi;
+    
+    private const string ContractAddress = "0xe3515d63bce48059146134176dbb18b9db0d80d8";
+    //private const string WalletAddress = "0x98000edf79B0eb598085721D57d93B5865c87751";
+
 
     public class Metadata
     {
@@ -50,7 +55,13 @@ public class DidimoMinterManager : MonoBehaviour
 
         // Set up the event listener to create a Didimo when the button is clicked
         createDidimoButton.onClick.AddListener(async () => await GenerateDidimo());
+        getMetadataButton.onClick.AddListener(OnGetMetadataButtonClick);
     }
+    
+        private void OnGetMetadataButtonClick()
+        {
+            StartCoroutine(TokenMetadata.TokenMetadataRequest(ContractAddress, walletAddress.text, OnTokenMetadataSuccess, OnTokenMetadataFailure));
+        }
 
     private async Task GenerateDidimo()
     {
@@ -105,6 +116,7 @@ public class DidimoMinterManager : MonoBehaviour
         StartCoroutine(NFTAPI.MintNFT(ownerAddress, tokenURI,
             (response) => Debug.Log("Minting successful: " + response),
             (error) => Debug.LogError("Minting error: " + error)));
+        
     }
 
     private async Task<string> UploadFile(string filePath)
@@ -249,5 +261,18 @@ public class DidimoMinterManager : MonoBehaviour
         // Apply the changes and return the cropped texture
         croppedTexture.Apply();
         return croppedTexture;
+    }
+    
+    private void OnTokenMetadataSuccess(string responseText)
+    {
+        Debug.Log(responseText);
+
+        // Parse the response JSON and process the metadata as needed
+        // ...
+    }
+
+    private void OnTokenMetadataFailure(string error)
+    {
+        Debug.LogError(error);
     }
 }
